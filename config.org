@@ -1,0 +1,261 @@
+* Table of Contents :toc:
+- [[#doom-configuration][Doom Configuration]]
+  - [[#ui][UI]]
+  - [[#modules][Modules]]
+  - [[#custom-functions][Custom Functions]]
+  - [[#custom-keymaps][Custom Keymaps]]
+
+* Doom Configuration
+Place your private configuration here! Remember, you do not need to run =doom sync= after modifying this file!
+
+Some functionality uses this to identify you, e.g. GPG configuration, email
+
+#+begin_src emacs-lisp
+;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+
+(setq user-full-name "Kevin Curtet"
+      user-mail-address "kcurtet@gmail.com")
+#+end_src
+
+Here are some additional functions/macros that could help you configure Doom:
+
+- `load!' for loading external *.el files relative to this one
+- `use-package!' for configuring packages
+- `after!' for running code after a package has loaded
+- `add-load-path!' for adding directories to the `load-path', relative to
+
+** UI
+
+*** Default Fonts
+
+#+begin_src emacs-lisp
+;; Load cutom icon font
+(setq doom-font (font-spec :family "agave Nerd Font" :size 16 :weight 'semi-bold)
+      doom-variable-pitch-font (font-spec :family "sans" :size 13))
+#+end_src
+
+*** Theme
+
+There are two ways to load a theme. Both assume the theme is installed and available. You can either set `doom-theme' or manually load a theme with the =load-theme= function. This is the default:
+
+#+begin_src emacs-lisp
+(setq doom-theme 'doom-dracula)
+#+end_src
+
+** Modules
+
+*** Dotfiles Custom Package
+
+#+begin_src emacs-lisp
+(defcustom +dotfiles-folder "~/.dotfiles"
+  "The folder with org-mode dotfiles."
+  :type 'string
+  :group 'dotfiles)
+
+(defcustom +dotfiles-files '("mpd/mpd.org")
+  "The list of org-mode files under `+dotfiles-folder'
+which contain configuration files to tangle."
+  :type '(list string)
+  :group 'dotfiles)
+
+(defun +dotfiles-tangle-org-file (&optional org-file target-file lang)
+  "Tangle the ORG-FILE if not nil.
+If ORG-FILE is nil tangle the current org-buffer."
+  (interactive)
+  (let ((org-confirm-babel-evaluate nil)
+        (message-log-max nil)
+        (inhibit-message t))
+    (if org-file
+        (org-babel-tangle-file (expand-file-name org-file +dotfiles-folder) target-file lang)
+      (org-babel-tangle nil target-file lang))))
+
+(defun +dotfiles-tangle-all-files ()
+  "Tangle all org-mode files in `+dotfiles-files'."
+  (interactive)
+  (dolist (org-file +dotfiles-files)
+    (+dotfiles-tangle-org-file org-file))
+  (message "Dotfiles are up to date!"))
+
+
+(defun +dotfiles-git-push-changes ()
+  "Update dotfiles repo"
+  (interactive)
+  (let* ((default-directory (expand-file-name +dotfiles-folder))
+         (current-branch (magit-get-current-branch)))
+    (magit-shell-command (concat "git " "commit " "--all "
+                                 (format-time-string "--message=\"%F %R\" ")))
+    (magit-git-push current-branch
+                    (concat "origin/" current-branch) nil)
+    nil))
+#+end_src
+
+*** Org Mode
+
+If you use =org= and don't want your org files in the default location below, change =org-directory=. It must be set before org loads!
+
+#+begin_src emacs-lisp
+(setq org-directory "~/org/")
+
+(use-package! org
+  :config
+  (add-to-list 'org-modules 'org-tempo t)
+  (add-to-list 'org-modules 'org-habit t)
+  (add-to-list 'org-structure-template-alist '("sh" . "src shell") t)
+  (add-to-list 'org-structure-template-alist '("py" . "src python") t)
+  (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp") t)
+  (setq org-plantuml-executable-path"/usr/bin/plantuml"
+        org-plantuml-exec-mode 'plantuml))
+#+end_src
+
+*** Projectile
+
+#+begin_src emacs-lisp
+(use-package! projectile
+  :config
+  (when (file-directory-p "~/code")
+    (setq projectile-project-search-path '("~/code"))))
+#+end_src
+
+*** Magit Forge
+
+#+begin_src emacs-lisp
+#+end_src
+
+*** IRC
+
+#+begin_src emacs-lisp
+(after! circe
+  (set-irc-server! "chat.freenode.net"
+                   `(:tls t
+                     :port 6697
+                     :nick "kcurtet"
+                     :sasl-username ,(+pass-get-user "irc/freenode.net")
+                     :sasl-password (lambda (&rest _) (+pass-get-secret "irc/freenode.net"))
+                     :channels ("#emacs" "##linux" "##c" "##rust" "##javascript"))))
+#+end_src
+
+*** Email
+
+This add mu4e to =load-path= i think doom remove system site-lisp.
+
+Add configuration for a gmail mailbox.
+
+#+begin_src emacs-lisp
+;; (add-to-list 'load-path "/usr/share/emacs/site-lisp/mu4e")
+
+(use-package! mu4e
+  :load-path "/usr/share/emacs/site-lisp/mu4e")
+
+(after! mu4e
+  (set-email-account! "gmail"
+                      '((user-full-name . "Kevin Curtet")
+                        (user-mail-address . "kcurtet@gmail.com")
+                        (mu4e-sent-folder       . "/gmail/[Gmail].Enviados")
+                        (mu4e-drafts-folder     . "/gmail/[Gmail].Borradores")
+                        (mu4e-trash-folder      . "/gmail/[Gmail].Papelera")
+                        (mu4e-refile-folder     . "/gmail/[Gmail].Todos")
+                        (smtpmail-smtp-user     . "kcurtet@gmail.com")
+                        (smtpmail-smtp-server   . "smtp.gmail.com")
+                        (smtpmail-smtp-service  . 465)
+                        (smtpmail-stream-type   . ssl)
+                        (mu4e-maildir-shortcuts . (("/gmail/inbox"              . ?i)
+                                                   ("/gmail/[Gmail].Todos"      . ?a)
+                                                   ("/gmail/[Gmail].Enviados"   . ?s)
+                                                   ("/gmail/[Gmail].Borradores" . ?d)
+                                                   ("/gmail/[Gmail].Papelera"   . ?t)))                    (mml-secure-openpgp-signers "C10B0A8D28209C24")
+                        (mu4e-bookmarks . (("flag:unread AND NOT m:/gmail/trash" "Unread messages" ?u)
+                                           ("date:today..now AND NOT m:/gmail/[Gmail].Borradores" "Today's messages" ?t)
+                                           ("flag:flagged AND NOT m:/gmail/[Gmail].Borradores" "Flagged messages" ?f)
+                                           ("date:7d..now AND NOT m:/gmail/[Gmail].Borradores" "Last 7 days" ?w)
+                                           ("mime:image/* AND NOT m:/gmail/[Gmail].Borradores" "Messages with images" ?b)))                    (mu4e-compose-signature . "Kevin Curtet"))
+                      t))
+#+end_src
+
+Customize mbsync output
+
+#+begin_src emacs-lisp
+(after! mu4e
+  (defun mu4e-pretty-mbsync-process-filter (proc msg)
+    (ignore-errors
+      (with-current-buffer (process-buffer proc)
+        (let ((inhibit-read-only t))
+          (delete-region (point-min) (point-max))
+          (insert (car (reverse (split-string msg "\r"))))
+          (when (re-search-backward "\\(C:\\).*\\(B:\\).*\\(M:\\).*\\(S:\\)")
+            (add-face-text-property
+             (match-beginning 1) (match-end 1) 'font-lock-keyword-face)
+            (add-face-text-property
+             (match-beginning 2) (match-end 2) 'font-lock-function-name-face)
+            (add-face-text-property
+             (match-beginning 3) (match-end 3) 'font-lock-builtin-face)
+            (add-face-text-property
+             (match-beginning 4) (match-end 4) 'font-lock-type-face))))))
+
+  (advice-add
+   'mu4e~get-mail-process-filter
+   :override #'mu4e-pretty-mbsync-process-filter))
+#+end_src
+
+*** Calendar Sync
+
+#+begin_src elisp
+(after! org-gcal
+  (setq org-gcal-client-id (+pass-get-user "calendar/emacs")
+        org-gcal-client-secret (+pass-get-secret "calendar/emacs")
+        org-gcal-fetch-file-alist '(("kcurtet@gmail.com" .  "~/org/gcal.org"))))
+#+end_src
+
+*** Spelling
+
+**** Ispell
+
+#+begin_src emacs-lisp
+(setq ispell-dictionary "en")
+#+end_src
+
+**** Language Tool
+
+#+begin_src emacs-lisp
+(use-package! langtool
+  :init
+  (setq longtool-language-tool-jar "/opt/langtool/languagetool-commandline.jar"
+        langtool-default-language "en-US"))
+#+end_src
+
+** Custom Functions
+
+#+begin_src elisp
+(defun kcurtet/browse-url-mpv (url &rest options)
+  "Opens the given URL with `mpv'"
+  (interactive "sURL: ")
+  (let ((buffer (concat "mpv " url)))
+    (start-process "mpv" buffer "mpv" "--quiet" url (apply #'concat options))
+    (pop-to-buffer buffer)))
+
+(defun kcurtet/open-org-files ()
+  "Open with counsel `org-directory'"
+  (interactive)
+  (counsel-find-file org-directory))
+#+end_src
+
+** Custom Keymaps
+
+#+begin_src elisp
+;; files keybinds
+(map! :leader :desc "org files" "foo" #'kcurtet/open-org-files
+      :leader :desc "bspwm config" "fob" (cmd! (find-file "~/.config/bspwm/bspwmrc"))
+      :leader :desc "sxhkd config" "fos" (cmd! (find-file "~/.config/sxhkd/sxhkdrc"))
+      :leader :desc "polybar config" "fop" (cmd! (find-file "~/.config/polybar/config"))
+      :leader :desc "zsh env" "foe" (cmd! (find-file "~/.zshenv"))
+      :leader :desc "zsh conf" "foz" (cmd! (find-file "~/.zshenv"))
+      :leader :desc "dotfiles" "fod" (cmd! (find-file "~/.dotfiles"))
+      :leader :desc "vim config" "fov" (cmd! (find-file "~/.vimrc")))
+
+;; helpers
+(map! :leader :desc "copy link" "s C-L" #'link-hint-copy-link
+      :leader :desc "open in mpv" "o v" #'kcurtet/browse-url-mpv)
+
+;; elisp keybinds
+(map! :map emacs-lisp-mode-map
+      :desc "run defun" "C-M-x" #'eval-defun)
+#+end_src
