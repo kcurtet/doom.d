@@ -44,7 +44,10 @@ This packages will be installed with my guix system.
 * Org
 
 #+begin_src emacs-lisp
-(setq org-directory "~/org/")
+(setq org-directory "~/Notas/")
+
+(after! org
+  (add-to-list 'org-modules 'ol-info))
 #+end_src
 
 * Circe
