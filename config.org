@@ -1,0 +1,113 @@
+* Doom Config
+** User Info
+
+#+begin_src emacs-lisp
+(setq user-full-name "kevin curtet"
+      user-mail-address "kcurtet@gmail.com")
+#+end_src
+
+** Theme & User Interface
+*** Default Fonts
+
+#+begin_src emacs-lisp
+;; + `doom-font'
+;; + `doom-variable-pitch-font'
+;; + `doom-big-font' -- used for `doom-big-font-mode'; use this for
+;;   presentations or streaming.
+;;
+(setq doom-font (font-spec :family "Fira Code" :size 18 :weight 'regular)
+      doom-variable-pitch-font (font-spec  :family "sans" :size 13))
+#+end_src
+
+*** Load Theme
+
+#+begin_src emacs-lisp
+(setq doom-theme 'doom-one)
+#+end_src
+
+*** Line numbers
+
+#+begin_src emacs-lisp
+(setq display-line-numbers-type t)
+#+end_src
+
+* Guix
+This packages will be installed with my guix system.
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "~/.guix-profile/share/emacs/site-lisp")
+(use-package! geiser)
+(use-package! guix)
+(guix-emacs-autoload-packages)
+#+end_src
+
+* Org
+
+#+begin_src emacs-lisp
+(setq org-directory "~/org/")
+#+end_src
+
+* Circe
+
+Include default config to connect to my irc account on Freenode.net
+
+#+begin_src emacs-lisp
+(after! circe
+  (set-irc-server! "chat.freenode.net"
+    `(:tls t
+      :port 6697
+      :nick "kcurtet"
+      :sasl-username ,(+pass-get-user "irc/freenode.net")
+      :sasl-password ,(lambda (&rest _) (+pass-get-secret "irc/freenode.net"))
+      :channels ("#emacs" "#guix"))))
+#+end_src
+
+* mu4e
+
+Anything better than have email in your code editor?
+
+#+begin_src emacs-lisp
+(set-email-account! "Gmail"
+  '((mu4e-sent-folder       . "/Gmail/Sent Mail")
+    (mu4e-drafts-folder     . "/Gmail/Drafts")
+    (mu4e-trash-folder      . "/Gmail/Trash")
+    (mu4e-refile-folder     . "/Gmail/All Mail")
+    (smtpmail-smtp-user     . "kcurtet@gmail.com")
+    (user-mail-address      . "kcurtet@gmail.com")    ;; only needed for mu < 1.4
+    (mu4e-compose-signature . "---\nKevin Curtet"))
+  t)
+#+end_src
+
+* PHP mode
+
+#+begin_src emacs-lisp
+(after! php-mode
+  (setq composer-directory-to-managed-file (expand-file-name "composer/" doom-cache-dir)
+        composer-executable-bin (expand-file-name "composer.phar" composer-directory-to-managed-file))
+  (when (not (file-exists-p composer-directory-to-managed-file))
+    (make-directory composer-directory-to-managed-file)  (composer-setup-managed-phar)))
+#+end_src
+
+* Git
+#+begin_src emacs-lisp
+(defun kc/create-github-repo (name &optional public)
+  (interactive "sRepo Name: ")
+  (ghub-post "user/repos" nil
+	     :username "kcurtet" :auth 'forge
+	     :payload `(("name" . ,name)
+			("private" . ,(not public)))))
+
+(defun kc/delete-github-repo (name)
+  (interactive "sRepo name: ")
+  (let ((repo (format "/repos/%s/%s"
+			"kcurtet" name)))
+    (when (y-or-n-p (format "Are you sure to delete: %s?" repo))
+          (ghub-delete repo))))
+#+end_src
+
+* Language Server Protocol (LSP)
+#+begin_src emacs-lisp
+(after! lsp
+  (setq lsp-enable-file-watchers t
+        lsp-file-watch-threshold 10000))
+#+end_src
